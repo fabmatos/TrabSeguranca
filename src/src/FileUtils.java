@@ -45,20 +45,34 @@ public class FileUtils {
         return null;
     }
     
-    public void writeFile (String txt, String filename) throws IOException{
-        String path = System.getProperty("user.dir") + "/src/";
-        File file = new File(path + filename);
-        if (!file.exists()) {
+    public void escreverArquivo (String txt, String nome_arquivo, int opcao) throws IOException{
+        
+        String diretorio = System.getProperty("user.dir") + "/src/";
+        File arquivo;
+        switch (opcao) {
+            case 0:
+                arquivo = new File(diretorio + nome_arquivo);
+                break;
+            case 1:
+                arquivo = new File(diretorio + nome_arquivo + ".cifrado");
+                break;
+            default:
+                nome_arquivo = nome_arquivo.replace(".cifrado", "");
+                arquivo = new File(diretorio + nome_arquivo + ".decifrado");
+                break;
+        }
+        if (!arquivo.exists()) {
             try {
-                file.createNewFile();
-            } catch (IOException ex) {
+                arquivo.createNewFile();
+            } 
+            catch (IOException ex) {
                 Logger.getLogger(FileUtils.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-
-        FileWriter fw = new FileWriter(file.getAbsoluteFile());
-        BufferedWriter bw = new BufferedWriter(fw);
-        bw.write(txt);
-        bw.close();
+        FileWriter escritor = new FileWriter(arquivo.getAbsoluteFile());
+        BufferedWriter escritor_final = new BufferedWriter(escritor);
+        escritor_final.write(txt);
+        escritor_final.close();
     }
+    
 }
