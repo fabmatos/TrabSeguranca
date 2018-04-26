@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.Security;
 
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -17,7 +18,6 @@ public class AutenticacaoView {
 	private SecurityController gerenciador = new SecurityController();
 	
 	public static void main(String [] p) throws Exception {
-		
 		AutenticacaoView view = new AutenticacaoView();
 		view.menuPrincipal();
 		
@@ -48,7 +48,8 @@ public class AutenticacaoView {
 		switch(option){
 			case 1 : 
 				String caminho = JOptionPane.showInputDialog("Digite o caminho do arquivo a ser cifrado:");
-				
+				this.gerenciador.cifraArquivo(caminho);
+				this.gerenciador.decifraArquivo(caminho+".cifrado");
 		}
 	}
 	
