@@ -23,7 +23,7 @@ public class SecurityController {
 		String gcmIV = "";
 
 		try {
-			gcmIV = gravador.readFile("arquivos/gcm_iv.txt").replace("\n", "").replace("\r", "");
+			gcmIV = this.gravador.readFile("arquivos/gcm_iv.txt").replace("\n", "").replace("\r", "");
 			if (gcmIV.isEmpty()) {
 				/*
 				 * Esse IV é para MODO CTR E NÃO GCM
@@ -33,7 +33,7 @@ public class SecurityController {
 				random.nextBytes(ivBytes);
 
 				ivSpec = new IvParameterSpec(ivBytes);
-				gravador.escreverArquivo(Hex.encodeHexString(ivSpec.getIV()), "arquivos/gcm_iv.txt", 0);
+				this.gravador.escreverArquivo(Hex.encodeHexString(ivSpec.getIV()), "arquivos/gcm_iv.txt", 0);
 			} else {
 				ivSpec = new IvParameterSpec(Hex.decodeHex(gcmIV));
 			}
@@ -46,19 +46,19 @@ public class SecurityController {
 
 	public String derivarMasterKeyPBKDF2(String senha) throws NoSuchAlgorithmException, IOException {
 		String chavePBKDF2 = "";
-		String salt = pbkdf2.getSalt();
-		chavePBKDF2 = pbkdf2.generateDerivedKey(senha, salt, 100000);
-		gravador.escreverArquivo(salt, "arquivos/salt_mk.txt", 0);
-		gravador.escreverArquivo(chavePBKDF2, "arquivos/master_key.txt", 0);
+		String salt = this.pbkdf2.getSalt();
+		chavePBKDF2 = this.pbkdf2.generateDerivedKey(senha, salt, 100000);
+		this.gravador.escreverArquivo(salt, "arquivos/salt_mk.txt", 0);
+		this.gravador.escreverArquivo(chavePBKDF2, "arquivos/master_key.txt", 0);
 		System.out.println("Sal gerado = " + salt);
 		return chavePBKDF2;
 	}
 
 	public boolean verificaMasterKey(String senha) throws IOException {
 
-		String masterKey = gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
-		String salt = gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
-		String chavePBKDF2 = pbkdf2.generateDerivedKey(senha, salt, 100000);
+		String masterKey = this.gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
+		String salt = this.gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
+		String chavePBKDF2 = this.pbkdf2.generateDerivedKey(senha, salt, 100000);
 
 		return chavePBKDF2.equals(masterKey);
 	}
@@ -67,10 +67,10 @@ public class SecurityController {
 		IvParameterSpec iv = this.recuperarIV();
 
 		try {
-			chave = Utils.createKeyForAES(256, SecureRandom.getInstance("SHA1PRNG"));
+			this.chave = Utils.createKeyForAES(256, SecureRandom.getInstance("SHA1PRNG"));
 			String textoPlano = this.gravador.readFile(arquivo);
-			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "SunJCE");
-			cifrador.init(Cipher.ENCRYPT_MODE, chave, iv);
+			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifrador.init(Cipher.ENCRYPT_MODE, this.chave, iv);
 
 			byte[] arquivoCifrado = cifrador.doFinal(textoPlano.getBytes());
 			String textoCifrado = Hex.encodeHexString(arquivoCifrado);
@@ -80,15 +80,37 @@ public class SecurityController {
 			e.printStackTrace();
 		}
 	}
+	// public void cifraArquivo(String arquivo) {
+	// IvParameterSpec iv = this.recuperarIV();
+	//
+	// try {
+	// this.chave = Utils.createKeyForAES(256, SecureRandom.getInstance("SHA1PRNG"));
+	// KeyParameter key = new KeyParameter(this.chave.getEncoded());
+	//
+	// String textoPlano = this.gravador.readFile(arquivo);
+	// GCMBlockCipher cifrador = new GCMBlockCipher(new AESEngine());
+	// cifrador.init(true, new AEADParameters(key, 128, iv.getIV()));
+	//
+	// int outsize = cifrador.getOutputSize(textoPlano.getBytes().length);
+	// byte[] arquivoCifrado = new byte[outsize];
+	// int lengthArquivoCifrado = cifrador.processBytes(textoPlano.getBytes(), 0, textoPlano.getBytes().length, arquivoCifrado, 0);
+	// cifrador.doFinal(arquivoCifrado, lengthArquivoCifrado);
+	//
+	// String textoCifrado = Hex.encodeHexString(arquivoCifrado);
+	// this.gravador.escreverArquivo(textoCifrado, arquivo, 1);
+	// } catch (Exception e) {
+	// e.printStackTrace();
+	// }
+	// }
 
 	public void decifraArquivo(String arquivo) {
 		Cipher cifra;
 		IvParameterSpec iv = this.recuperarIV();
 
 		try {
-			String arquivoLido = gravador.readFile(arquivo).replace("\n", "").replace("\r", "");
-			cifra = Cipher.getInstance("AES/GCM/NoPadding");
-			cifra.init(Cipher.DECRYPT_MODE, chave, iv);
+			String arquivoLido = this.gravador.readFile(arquivo).replace("\n", "").replace("\r", "");
+			cifra = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifra.init(Cipher.DECRYPT_MODE, this.chave, iv);
 
 			byte[] transforma_bytes = Hex.decodeHex(arquivoLido.toCharArray());
 
