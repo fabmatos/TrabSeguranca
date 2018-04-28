@@ -52,28 +52,9 @@ public class AutenticacaoView {
 				String caminho = JOptionPane.showInputDialog("Digite o caminho do arquivo a ser cifrado:");
 				this.gerenciador.cifraArquivo(caminho);
 				this.gerenciador.decifraArquivo(caminho+".cifrado");
+			String hmac = this.gerenciador.calculaHMAC("teste.cifrado");
+			System.out.println(hmac);
 		}
 	}
-
-//	public static void insereUser() throws Exception {
-//
-//		String senha = JOptionPane.showInputDialog("Senha: ");
-//
-//        System.out.println("Senha Original = " + senha);
-//		//String pbkdf5Key = derivarChavePBKDF2(senha);
-//
-//
-//		byte [] senhaBytes = Hex.decodeHex(pbkdf5Key.toCharArray());//32 bytes
-//
-//		System.out.println("Chave PBKDF5 gerada: "+ Utils.toHex(senhaBytes));
-//
-//		SecureRandom	random = new SecureRandom();
-//        IvParameterSpec ivSpec = Utils.createCtrIvForAES(1, random);
-//
-//		Key keySenha = new SecretKeySpec(senhaBytes, "AES");
-//		HMacUtil hmac = new HMacUtil();
-//
-//	}
-
 
 }

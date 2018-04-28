@@ -1,14 +1,18 @@
 package src;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Hex;
 
@@ -42,6 +46,51 @@ public class SecurityController {
 		}
 
 		return ivSpec;
+	}
+
+	public Key recuperarHMACKey() {
+
+		String chave = "";
+		Key hMacKey = null;
+		try {
+			chave = this.gravador.readFile("arquivos/hmac_key.txt").replace("\n", "").replace("\r", "");
+			if (chave.isEmpty()) {
+				SecureRandom random = new SecureRandom();
+				Key key = Utils.createKeyForAES(128, random);
+				hMacKey = new SecretKeySpec(key.getEncoded(), "HMacSHA256");
+				this.gravador.escreverArquivo(Hex.encodeHexString(hMacKey.getEncoded()), "arquivos/hmac_key.txt", 0);
+			} else {
+				byte[] K = org.apache.commons.codec.binary.Hex.decodeHex(chave.toCharArray());
+				hMacKey = new SecretKeySpec(K, "AES");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return hMacKey;
+	}
+
+	public void salvarChaveiro() {
+
+	}
+
+	public String calculaHMAC(String nomeArquivo) {
+		String hmacNomeArquivo = "";
+		Key hMKey = this.recuperarHMACKey();
+		try {
+			Mac hMac = Mac.getInstance("HMacSHA256", "BC");
+			hMac.init(hMKey);
+			hMac.update(nomeArquivo.getBytes());
+			hmacNomeArquivo = Hex.encodeHexString(hMac.doFinal());
+
+		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return hmacNomeArquivo;
 	}
 
 	public String derivarMasterKeyPBKDF2(String senha) throws NoSuchAlgorithmException, IOException {
@@ -119,6 +168,10 @@ public class SecurityController {
 		} catch (Exception e) {
 			Logger.getLogger(SecurityController.class.getName()).log(Level.SEVERE, null, e);
 		}
+	}
+
+	public void montarChaveiro(String nomeArquivo, String chaveArquivo) {
+
 	}
 
 }
