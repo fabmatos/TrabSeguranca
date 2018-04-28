@@ -29,9 +29,6 @@ public class SecurityController {
 		try {
 			gcmIV = this.gravador.readFile("arquivos/gcm_iv.txt").replace("\n", "").replace("\r", "");
 			if (gcmIV.isEmpty()) {
-				/*
-				 * Esse IV é para MODO CTR E NÃO GCM
-				 */
 				SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
 				byte[] ivBytes = new byte[16];
 				random.nextBytes(ivBytes);
@@ -70,10 +67,6 @@ public class SecurityController {
 		return hMacKey;
 	}
 
-	public void salvarChaveiro() {
-
-	}
-
 	public String calculaHMAC(String nomeArquivo) {
 		String hmacNomeArquivo = "";
 		Key hMKey = this.recuperarHMACKey();
@@ -93,13 +86,62 @@ public class SecurityController {
 		return hmacNomeArquivo;
 	}
 
+	public String cifraChaveWithGcm(String chave) {
+
+		String textoCifrado = "";
+		IvParameterSpec iv = this.recuperarIV();
+		try {
+			String masterKey = this.gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
+			String salt = this.gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
+			String chavePBKDF2 = this.pbkdf2.generateDerivedKey(masterKey, salt, 100000);
+
+			byte[] K = Hex.decodeHex(chavePBKDF2.toCharArray());
+			Key keyDerivada = new SecretKeySpec(K, "AES");
+
+			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifrador.init(Cipher.ENCRYPT_MODE, keyDerivada, iv);
+
+			byte[] chaveCifrada = cifrador.doFinal(chave.getBytes());
+			textoCifrado = Hex.encodeHexString(chaveCifrada);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return textoCifrado;
+	}
+
+	public byte[] decifraChaveWithGcm(String chaveCifrada) {
+
+		byte[] chave = null;
+		IvParameterSpec iv = this.recuperarIV();
+		try {
+			String masterKey = this.gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
+			String salt = this.gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
+			String chavePBKDF2 = this.pbkdf2.generateDerivedKey(masterKey, salt, 100000);
+
+			byte[] K = Hex.decodeHex(chavePBKDF2.toCharArray());
+			Key keyDerivada = new SecretKeySpec(K, "AES");
+
+			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifrador.init(Cipher.DECRYPT_MODE, keyDerivada, iv);
+
+			byte[] chaveCifradaBytes = Hex.decodeHex(chaveCifrada.toCharArray());
+			chave = cifrador.doFinal(chaveCifradaBytes);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return chave;
+	}
+
 	public String derivarMasterKeyPBKDF2(String senha) throws NoSuchAlgorithmException, IOException {
 		String chavePBKDF2 = "";
 		String salt = this.pbkdf2.getSalt();
 		chavePBKDF2 = this.pbkdf2.generateDerivedKey(senha, salt, 100000);
 		this.gravador.escreverArquivo(salt, "arquivos/salt_mk.txt", 0);
 		this.gravador.escreverArquivo(chavePBKDF2, "arquivos/master_key.txt", 0);
-		System.out.println("Sal gerado = " + salt);
+		// System.out.println("Sal gerado = " + salt);
 		return chavePBKDF2;
 	}
 
@@ -129,28 +171,6 @@ public class SecurityController {
 			e.printStackTrace();
 		}
 	}
-	// public void cifraArquivo(String arquivo) {
-	// IvParameterSpec iv = this.recuperarIV();
-	//
-	// try {
-	// this.chave = Utils.createKeyForAES(256, SecureRandom.getInstance("SHA1PRNG"));
-	// KeyParameter key = new KeyParameter(this.chave.getEncoded());
-	//
-	// String textoPlano = this.gravador.readFile(arquivo);
-	// GCMBlockCipher cifrador = new GCMBlockCipher(new AESEngine());
-	// cifrador.init(true, new AEADParameters(key, 128, iv.getIV()));
-	//
-	// int outsize = cifrador.getOutputSize(textoPlano.getBytes().length);
-	// byte[] arquivoCifrado = new byte[outsize];
-	// int lengthArquivoCifrado = cifrador.processBytes(textoPlano.getBytes(), 0, textoPlano.getBytes().length, arquivoCifrado, 0);
-	// cifrador.doFinal(arquivoCifrado, lengthArquivoCifrado);
-	//
-	// String textoCifrado = Hex.encodeHexString(arquivoCifrado);
-	// this.gravador.escreverArquivo(textoCifrado, arquivo, 1);
-	// } catch (Exception e) {
-	// e.printStackTrace();
-	// }
-	// }
 
 	public void decifraArquivo(String arquivo) {
 		Cipher cifra;
@@ -170,7 +190,10 @@ public class SecurityController {
 		}
 	}
 
-	public void montarChaveiro(String nomeArquivo, String chaveArquivo) {
+	public void inserirNoChaveiro(String nomeArquivo, String chaveArquivo) {
+
+		String hmacNomeArquivo = this.calculaHMAC(nomeArquivo);
+		String gcmChave = this.cifraChaveWithGcm(chaveArquivo);
 
 	}
 

@@ -52,8 +52,6 @@ public class AutenticacaoView {
 				String caminho = JOptionPane.showInputDialog("Digite o caminho do arquivo a ser cifrado:");
 				this.gerenciador.cifraArquivo(caminho);
 				this.gerenciador.decifraArquivo(caminho+".cifrado");
-			String hmac = this.gerenciador.calculaHMAC("teste.cifrado");
-			System.out.println(hmac);
 		}
 	}
 
