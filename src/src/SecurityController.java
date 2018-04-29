@@ -6,6 +6,8 @@ import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,12 +17,17 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Hex;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
+import src.model.ItemChaveiro;
 
 public class SecurityController {
 
 	private PBKDF2Util pbkdf2 = new PBKDF2Util();
 	private FileUtils gravador = new FileUtils();
-	private Key chave = null;
+	// private Key chave = null;
 
 	public IvParameterSpec recuperarIV() {
 		IvParameterSpec ivSpec = null;
@@ -36,7 +43,7 @@ public class SecurityController {
 				ivSpec = new IvParameterSpec(ivBytes);
 				this.gravador.escreverArquivo(Hex.encodeHexString(ivSpec.getIV()), "arquivos/gcm_iv.txt", 0);
 			} else {
-				ivSpec = new IvParameterSpec(Hex.decodeHex(gcmIV));
+				ivSpec = new IvParameterSpec(Hex.decodeHex(gcmIV.toCharArray()));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -57,7 +64,7 @@ public class SecurityController {
 				hMacKey = new SecretKeySpec(key.getEncoded(), "HMacSHA256");
 				this.gravador.escreverArquivo(Hex.encodeHexString(hMacKey.getEncoded()), "arquivos/hmac_key.txt", 0);
 			} else {
-				byte[] K = org.apache.commons.codec.binary.Hex.decodeHex(chave.toCharArray());
+				byte[] K = Hex.decodeHex(chave.toCharArray());
 				hMacKey = new SecretKeySpec(K, "AES");
 			}
 		} catch (Exception e) {
@@ -158,43 +165,127 @@ public class SecurityController {
 		IvParameterSpec iv = this.recuperarIV();
 
 		try {
-			this.chave = Utils.createKeyForAES(256, SecureRandom.getInstance("SHA1PRNG"));
+			Key key = Utils.createKeyForAES(128, SecureRandom.getInstance("SHA1PRNG"));
 			String textoPlano = this.gravador.readFile(arquivo);
 			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-			cifrador.init(Cipher.ENCRYPT_MODE, this.chave, iv);
+			cifrador.init(Cipher.ENCRYPT_MODE, key, iv);
 
 			byte[] arquivoCifrado = cifrador.doFinal(textoPlano.getBytes());
 			String textoCifrado = Hex.encodeHexString(arquivoCifrado);
 
 			this.gravador.escreverArquivo(textoCifrado, arquivo, 1);
+
+			this.inserirNoChaveiro(arquivo, Hex.encodeHexString(key.getEncoded()));
+			System.out.println("Chave antes de ser inserida no chaveiro: " + Hex.encodeHexString(key.getEncoded()));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void decifraArquivo(String arquivo) {
-		Cipher cifra;
-		IvParameterSpec iv = this.recuperarIV();
+	public void decifraArquivo(String nomeArquivo) {
+		ItemChaveiro item = this.existeNoChaveiro(nomeArquivo);
 
 		try {
-			String arquivoLido = this.gravador.readFile(arquivo).replace("\n", "").replace("\r", "");
+			String chaveDecifrada = new String(this.decifraChaveWithGcm(item.getChaveArquivo()));
+
+			Key chave = new SecretKeySpec(Hex.decodeHex(chaveDecifrada.toCharArray()), "AES");
+			System.out.println("Chave decifrada: " + Hex.encodeHexString(chave.getEncoded()));
+			Cipher cifra;
+			IvParameterSpec iv = this.recuperarIV();
+
+			String arquivoLido = this.gravador.readFile(nomeArquivo + ".cifrado").replace("\n", "").replace("\r", "");
 			cifra = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-			cifra.init(Cipher.DECRYPT_MODE, this.chave, iv);
+			cifra.init(Cipher.DECRYPT_MODE, chave, iv);
 
 			byte[] transforma_bytes = Hex.decodeHex(arquivoLido.toCharArray());
 
 			String arquivoDecifrado = new String(cifra.doFinal(transforma_bytes));
-			this.gravador.escreverArquivo(arquivoDecifrado, arquivo, 2);
+			this.gravador.escreverArquivo(arquivoDecifrado, nomeArquivo, 2);
 		} catch (Exception e) {
 			Logger.getLogger(SecurityController.class.getName()).log(Level.SEVERE, null, e);
 		}
 	}
 
 	public void inserirNoChaveiro(String nomeArquivo, String chaveArquivo) {
+		List<ItemChaveiro> chaveiro = this.gravador.recuperarItensChaveiro();
 
 		String hmacNomeArquivo = this.calculaHMAC(nomeArquivo);
 		String gcmChave = this.cifraChaveWithGcm(chaveArquivo);
+		System.out.println("GCM DA CHAVE: " + gcmChave);
+		ItemChaveiro itemChaveiro = this.existeNoChaveiro(nomeArquivo);
+		if (itemChaveiro == null) {
+			itemChaveiro = new ItemChaveiro(hmacNomeArquivo, gcmChave);
+			chaveiro.add(itemChaveiro);
+		} else {
+			for (ItemChaveiro item : chaveiro) {
+				if (item.getNomeArquivo().equals(hmacNomeArquivo)) {
+					item.setChaveArquivo(gcmChave);
+				}
+			}
+		}
 
+		JSONArray jsonArray = this.gravador.convertListToJson(chaveiro);
+
+		try {
+			this.gravador.escreverArquivo(jsonArray.toJSONString(), "arquivos/chaveiro", 0);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public ItemChaveiro existeNoChaveiro(String nomeArquivo) {
+		try {
+			String hmacName = this.calculaHMAC(nomeArquivo);
+
+			List<ItemChaveiro> listaArquivos = this.gravador.recuperarItensChaveiro();
+
+			for (ItemChaveiro item : listaArquivos) {
+				if (item.getNomeArquivo().equals(hmacName)) {
+					return item;
+				}
+			}
+		} catch (Exception ex) {
+			Logger.getLogger(SecurityController.class.getName()).log(Level.SEVERE, null, ex);
+		}
+
+		return null;
+	}
+
+	public List<ItemChaveiro> recuperarItensChaveiro() {
+		List<ItemChaveiro> itens = new ArrayList<ItemChaveiro>();
+
+		try {
+			String conteudoChaveiro = this.gravador.readFile("arquivos/chaveiro");
+			if (!conteudoChaveiro.isEmpty()) {
+				JSONParser parser = new JSONParser();
+				JSONArray jsonArray = (JSONArray) parser.parse(conteudoChaveiro);
+
+				for (Object item : jsonArray) {
+					JSONObject itemChaveiroJson = (JSONObject) item;
+					ItemChaveiro itemChaveiro = new ItemChaveiro((String) itemChaveiroJson.get("nomeArquivo"), (String) itemChaveiroJson.get("chaveArquivo"));
+					itens.add(itemChaveiro);
+				}
+			}
+		} catch (Exception ex) {
+			Logger.getLogger(FileUtils.class.getName()).log(Level.SEVERE, null, ex);
+		}
+
+		return itens;
+	}
+
+	@SuppressWarnings("unchecked")
+	public JSONArray convertListToJson(List<ItemChaveiro> itens) {
+		JSONArray jsonArray = new JSONArray();
+
+		for (ItemChaveiro item : itens) {
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("nomeArquivo", item.getNomeArquivo());
+			jsonObject.put("chaveArquivo", item.getChaveArquivo());
+			jsonArray.add(jsonObject);
+		}
+
+		return jsonArray;
 	}
 
 }
