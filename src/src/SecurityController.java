@@ -207,7 +207,7 @@ public class SecurityController {
 	}
 
 	public void inserirNoChaveiro(String nomeArquivo, String chaveArquivo) {
-		List<ItemChaveiro> chaveiro = this.gravador.recuperarItensChaveiro();
+		List<ItemChaveiro> chaveiro = this.recuperarItensChaveiro();
 
 		String hmacNomeArquivo = this.calculaHMAC(nomeArquivo);
 		String gcmChave = this.cifraChaveWithGcm(chaveArquivo);
@@ -224,9 +224,10 @@ public class SecurityController {
 			}
 		}
 
-		JSONArray jsonArray = this.gravador.convertListToJson(chaveiro);
+		JSONArray jsonArray = this.convertListToJson(chaveiro);
 
 		try {
+			this.cifraChaveiro(jsonArray.toJSONString());
 			this.gravador.escreverArquivo(jsonArray.toJSONString(), "arquivos/chaveiro", 0);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -238,7 +239,7 @@ public class SecurityController {
 		try {
 			String hmacName = this.calculaHMAC(nomeArquivo);
 
-			List<ItemChaveiro> listaArquivos = this.gravador.recuperarItensChaveiro();
+			List<ItemChaveiro> listaArquivos = this.recuperarItensChaveiro();
 
 			for (ItemChaveiro item : listaArquivos) {
 				if (item.getNomeArquivo().equals(hmacName)) {
@@ -256,10 +257,13 @@ public class SecurityController {
 		List<ItemChaveiro> itens = new ArrayList<ItemChaveiro>();
 
 		try {
-			String conteudoChaveiro = this.gravador.readFile("arquivos/chaveiro");
+			String conteudoChaveiro = this.gravador.readFile("arquivos/chaveiro.cifrado").replace("\n", "").replace("\r", "");
+
 			if (!conteudoChaveiro.isEmpty()) {
+				String conteudoChaveiroDecifrado = this.decifraChaveiro(conteudoChaveiro);
+				this.gravador.escreverArquivo(conteudoChaveiroDecifrado, "arquivos/chaveiro", 2);
 				JSONParser parser = new JSONParser();
-				JSONArray jsonArray = (JSONArray) parser.parse(conteudoChaveiro);
+				JSONArray jsonArray = (JSONArray) parser.parse(conteudoChaveiroDecifrado);
 
 				for (Object item : jsonArray) {
 					JSONObject itemChaveiroJson = (JSONObject) item;
@@ -286,6 +290,54 @@ public class SecurityController {
 		}
 
 		return jsonArray;
+	}
+
+	public String decifraChaveiro(String chaveiro) {
+
+		byte[] repositorioChaves = null;
+		IvParameterSpec iv = this.recuperarIV();
+		try {
+			String masterKey = this.gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
+			String salt = this.gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
+			String chavePBKDF2 = this.pbkdf2.generateDerivedKey(masterKey, salt, 100000);
+
+			byte[] K = Hex.decodeHex(chavePBKDF2.toCharArray());
+			Key keyDerivada = new SecretKeySpec(K, "AES");
+
+			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifrador.init(Cipher.DECRYPT_MODE, keyDerivada, iv);
+
+			byte[] chaveiroBytes = Hex.decodeHex(chaveiro.toCharArray());
+			repositorioChaves = cifrador.doFinal(chaveiroBytes);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new String(repositorioChaves);
+	}
+
+	public void cifraChaveiro(String conteudoChaveiro) {
+
+		String chaveiroCifrado = "";
+		IvParameterSpec iv = this.recuperarIV();
+		try {
+			String masterKey = this.gravador.readFile("arquivos/master_key.txt").replace("\n", "").replace("\r", "");
+			String salt = this.gravador.readFile("arquivos/salt_mk.txt").replace("\n", "").replace("\r", "");
+			String chavePBKDF2 = this.pbkdf2.generateDerivedKey(masterKey, salt, 100000);
+
+			byte[] K = Hex.decodeHex(chavePBKDF2.toCharArray());
+			Key keyDerivada = new SecretKeySpec(K, "AES");
+
+			Cipher cifrador = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+			cifrador.init(Cipher.ENCRYPT_MODE, keyDerivada, iv);
+
+			byte[] chaveiroCifradoBytes = cifrador.doFinal(conteudoChaveiro.getBytes());
+			chaveiroCifrado = Hex.encodeHexString(chaveiroCifradoBytes);
+			this.gravador.escreverArquivo(chaveiroCifrado, "arquivos/chaveiro", 1);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }

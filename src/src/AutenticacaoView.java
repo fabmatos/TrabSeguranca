@@ -66,7 +66,7 @@ public class AutenticacaoView {
 				break;
 			case 3:
 				caminho = JOptionPane.showInputDialog("Digite o caminho do arquivo a ser removido:");
-				this.gerenciador.removeArquivo(caminho);
+				// this.gerenciador.removeArquivo(caminho);
 				break;
 			default:
 				option = 0;

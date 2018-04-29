@@ -6,19 +6,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-
-import src.model.ItemChaveiro;
-
 public class FileUtils {
-
 
     public String readFile (String filename) throws IOException {
         String path = System.getProperty("user.dir") + "/src/";
@@ -79,40 +70,5 @@ public class FileUtils {
         escritor_final.write(txt);
         escritor_final.close();
     }
-
-	public List<ItemChaveiro> recuperarItensChaveiro() {
-		List<ItemChaveiro> itens = new ArrayList<ItemChaveiro>();
-
-		try {
-			String conteudoChaveiro = this.readFile("arquivos/chaveiro");
-			if (!conteudoChaveiro.isEmpty()) {
-				JSONParser parser = new JSONParser();
-				JSONArray jsonArray = (JSONArray) parser.parse(conteudoChaveiro);
-
-				for (Object item : jsonArray) {
-					JSONObject itemChaveiroJson = (JSONObject) item;
-					ItemChaveiro itemChaveiro = new ItemChaveiro((String) itemChaveiroJson.get("nomeArquivo"), (String) itemChaveiroJson.get("chaveArquivo"));
-					itens.add(itemChaveiro);
-				}
-			}
-		} catch (Exception ex) {
-			Logger.getLogger(FileUtils.class.getName()).log(Level.SEVERE, null, ex);
-		}
-
-		return itens;
-	}
-
-	public JSONArray convertListToJson(List<ItemChaveiro> itens) {
-        JSONArray jsonArray = new JSONArray();
-
-        for (ItemChaveiro item: itens){
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("nomeArquivo", item.getNomeArquivo());
-            jsonObject.put("chaveArquivo", item.getChaveArquivo());
-            jsonArray.add(jsonObject);
-        }
-
-		return jsonArray;
-	}
 
 }
