@@ -71,4 +71,16 @@ public class FileUtils {
         escritor_final.close();
     }
 
+	public void removerArquivo(String filename) {
+		String path = System.getProperty("user.dir") + "/src/";
+		File fileCifrado = new File(path + filename + ".cifrado");
+		File fileDecifrado = new File(path + filename + ".decifrado");
+		if (fileCifrado.exists()) {
+			fileCifrado.delete();
+		}
+		if (fileDecifrado.exists()) {
+			fileDecifrado.delete();
+		}
+	}
+
 }

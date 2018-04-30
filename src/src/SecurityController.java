@@ -340,4 +340,28 @@ public class SecurityController {
 		}
 	}
 
+	public void removeChaveArquivo(String caminho) {
+
+		List<ItemChaveiro> itens = this.recuperarItensChaveiro();
+		for (int i = 0; i < itens.size(); i++) {
+			ItemChaveiro item = itens.get(i);
+			if (item.getNomeArquivo().equals(this.calculaHMAC(caminho))) {
+				itens.remove(i);
+				this.gravador.removerArquivo(caminho);
+
+			}
+		}
+		JSONArray jsonArray = this.convertListToJson(itens);
+
+		try {
+			this.cifraChaveiro(jsonArray.toJSONString());
+			this.gravador.escreverArquivo(jsonArray.toJSONString(), "arquivos/chaveiro", 0);
+			String conteudoChaveiro = this.gravador.readFile("arquivos/chaveiro.cifrado").replace("\n", "").replace("\r", "");
+			String chaveiroDecifrado = this.decifraChaveiro(conteudoChaveiro);
+			this.gravador.escreverArquivo(chaveiroDecifrado, "arquivos/chaveiro", 2);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 }
