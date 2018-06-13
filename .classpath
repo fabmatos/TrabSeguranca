@@ -4,6 +4,14 @@
 	<classpathentry kind="lib" path="bcprov-jdk15on-155.jar"/>
 	<classpathentry kind="lib" path="commons-codec-1.11.jar"/>
 	<classpathentry kind="lib" path="json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="src/bcprov-jdk15on-155.jar"/>
+	<classpathentry kind="lib" path="src/src/bcpkix-fips-1.0.0.jar"/>
+	<classpathentry kind="lib" path="src/commons-codec-1.11.jar"/>
+	<classpathentry kind="lib" path="UnlimitedJCEPolicyJDK8/local_policy.jar"/>
+	<classpathentry kind="lib" path="UnlimitedJCEPolicyJDK8/US_export_policy.jar"/>
+	<classpathentry kind="lib" path="jce_policy-8.zip"/>
+	<classpathentry kind="lib" path="src/bc-fips-1.0.0.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="testeOAEPRSA.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
